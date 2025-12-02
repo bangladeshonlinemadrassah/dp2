@@ -973,7 +973,7 @@
       border: 1px solid var(--card-border);
       border-radius: 12px;
       box-shadow: var(--shadow-lg);
-      z-index: 1000;
+      z-index: 9999; /* Increased z-index */
       opacity: 0;
       transform: translateY(30px);
       transition: opacity 0.4s, transform 0.4s;
@@ -1623,7 +1623,7 @@
       color: white;
       padding: 20px 40px;
       border-radius: 10px;
-      z-index: 2000;
+      z-index: 10000; /* Increased z-index */
       font-size: 1rem;
       box-shadow: var(--shadow-md);
       text-align: center;
@@ -4288,13 +4288,21 @@
 
       fetch(WEB_APP_URL, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify(data)
       })
-      .then(res => res.text())
-      .then(txt => {
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(response => {
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
-        if (txt.startsWith("Success")) {
+        if (response.ok) {
           // Save token to local storage
           saveToken(token);
           
@@ -4306,7 +4314,8 @@
           showNotification("ডেটা জমা হয়নি! আবার চেষ্টা করুন।", true);
         }
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error('Submission error:', error);
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
         showNotification("ডেটা জমা হয়নি! আবার চেষ্টা করুন।", true);
@@ -4316,23 +4325,41 @@
     // Function to show success message with token
     function showSuccessMessageWithToken(token) {
       const successMessage = $('#successMessage');
-      successMessage.innerHTML = `ফর্ম সফলভাবে জমা হয়েছে!<br>আপনার টোকেন নম্বর: <strong>${token}</strong>`;
+      successMessage.innerHTML = `ফর্ম সফলভাবে জমা হয়েছে!<br>আপনার টোকেন নম্বর: <strong>${token}</strong><br><small>এই টোকেন নম্বরটি উত্তর পেতে সাহায্য করবে</small>`;
       successMessage.style.display = 'block';
+      
+      // Bring to front
+      successMessage.style.zIndex = '10001';
+      
       setTimeout(() => {
         successMessage.style.display = 'none';
-      }, 5000);
+      }, 8000);
+      
+      // Also show notification
+      showNotification(`কমেন্ট জমা হয়েছে! টোকেন: ${token}`, false);
     }
     
     // Modified loadSubmissions function to show reply buttons for admin/editor
     function loadSubmissions() {
       fetch(WEB_APP_URL + '?action=getSubmissions')
-        .then(res => res.json())
-        .then(data => {
+        .then(res => {
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then(response => {
           const list = $('#submissions-list');
           list.innerHTML = '';
           
+          // Check if response is successful
+          if (!response.ok || !response.data) {
+            list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)" class="bangla-font">ডেটা লোড করা যায়নি</div>';
+            return;
+          }
+          
           // Filter only ALIM-27 batch submissions
-          const alim27Submissions = data.filter(item => 
+          const alim27Submissions = response.data.filter(item => 
             item.batch && item.batch.toString().toLowerCase().includes('alim-27')
           );
           
@@ -4355,9 +4382,9 @@
             const hasReply = item.reply && item.reply.trim() !== '';
             
             let html = `
-              <div class="submission-name bangla-font">${item.name}</div>
-              <div class="submission-batch bangla-font">ব্যাচ: ${item.batch}</div>
-              <div class="submission-message bangla-font">${item.message}</div>
+              <div class="submission-name bangla-font">${item.name || 'নাম নেই'}</div>
+              <div class="submission-batch bangla-font">ব্যাচ: ${item.batch || 'ব্যাচ নেই'}</div>
+              <div class="submission-message bangla-font">${item.message || 'মেসেজ নেই'}</div>
             `;
             
             if (hasReply) {
@@ -4365,7 +4392,7 @@
               html += `<div class="submission-reply bangla-font">উত্তর: ${item.reply}</div>`;
             }
             
-            html += `<div class="submission-time bangla-font">${item.time}</div>`;
+            html += `<div class="submission-time bangla-font">${item.time || 'সময় নেই'}</div>`;
             
             // Add reply button for admin/editor
             if (isAdminOrEditor && !hasReply) {
@@ -4389,7 +4416,12 @@
             });
           }
         })
-        .catch(() => showNotification("সাবমিশন লোড হয়নি! আবার চেষ্টা করুন।", true));
+        .catch((error) => {
+          console.error('Error loading submissions:', error);
+          const list = $('#submissions-list');
+          list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)" class="bangla-font">সাবমিশন লোড হয়নি! আবার চেষ্টা করুন।</div>';
+          showNotification("সাবমিশন লোড হয়নি! আবার চেষ্টা করুন।", true);
+        });
     }
     
     // Function to show reply modal
@@ -4435,13 +4467,21 @@
 
       fetch(WEB_APP_URL, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify(data)
       })
-      .then(res => res.text())
-      .then(txt => {
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(response => {
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
-        if (txt.startsWith("Success")) {
+        if (response.ok) {
           hideReplyModal();
           showNotification(`টোকেন নম্বর ${token} এর উত্তর পাঠানো হয়েছে!`, false);
           // Reload submissions to update the UI
@@ -4452,7 +4492,8 @@
           showNotification("উত্তর পাঠানো যায়নি! আবার চেষ্টা করুন।", true);
         }
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error('Reply submission error:', error);
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
         showNotification("উত্তর পাঠানো যায়নি! আবার চেষ্টা করুন।", true);
@@ -4465,8 +4506,18 @@
       if (tokens.length === 0) return;
       
       fetch(WEB_APP_URL + '?action=getReplies')
-        .then(res => res.json())
-        .then(replies => {
+        .then(res => {
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then(response => {
+          if (!response.ok || !response.data) {
+            return;
+          }
+          
+          const replies = response.data;
           tokens.forEach(token => {
             const reply = replies.find(r => r.token === token);
             if (reply) {
