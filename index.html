@@ -4288,21 +4288,16 @@
 
       fetch(WEB_APP_URL, {
         method: 'POST',
+        mode: 'no-cors', // CORS সমস্যা এড়াতে
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(data)
       })
-      .then(res => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
       .then(response => {
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
-        if (response.ok) {
+        if (response.ok || response.type === 'opaque') {
           // Save token to local storage
           saveToken(token);
           
@@ -4310,6 +4305,11 @@
           showSuccessMessageWithToken(token);
           form.reset(); 
           hideForm();
+          
+          // Reload submissions to show new comment
+          setTimeout(() => {
+            loadSubmissions();
+          }, 1000);
         } else {
           showNotification("ডেটা জমা হয়নি! আবার চেষ্টা করুন।", true);
         }
@@ -4341,7 +4341,14 @@
     
     // Modified loadSubmissions function to show reply buttons for admin/editor
     function loadSubmissions() {
-      fetch(WEB_APP_URL + '?action=getSubmissions')
+      // Show loading message
+      const list = $('#submissions-list');
+      list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)" class="bangla-font">লোড হচ্ছে...</div>';
+      
+      fetch(WEB_APP_URL + '?action=getSubmissions', {
+        method: 'GET',
+        mode: 'cors'
+      })
         .then(res => {
           if (!res.ok) {
             throw new Error(`HTTP error! status: ${res.status}`);
@@ -4349,9 +4356,6 @@
           return res.json();
         })
         .then(response => {
-          const list = $('#submissions-list');
-          list.innerHTML = '';
-          
           // Check if response is successful
           if (!response.ok || !response.data) {
             list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)" class="bangla-font">ডেটা লোড করা যায়নি</div>';
@@ -4374,6 +4378,7 @@
           const userRole = getUserRole();
           const isAdminOrEditor = userRole === 'owner' || userRole === 'editor';
           
+          list.innerHTML = '';
           alim27Submissions.forEach(item => {
             const div = document.createElement('div');
             div.className = 'submission-item';
@@ -4389,7 +4394,7 @@
             
             if (hasReply) {
               html += `<div class="reply-indicator bangla-font">উত্তর দেওয়া হয়েছে</div>`;
-              html += `<div class="submission-reply bangla-font">উত্তর: ${item.reply}</div>`;
+              html += `<div class="submission-reply bangla-font"><strong>উত্তর:</strong> ${item.reply}</div>`;
             }
             
             html += `<div class="submission-time bangla-font">${item.time || 'সময় নেই'}</div>`;
@@ -4397,6 +4402,11 @@
             // Add reply button for admin/editor
             if (isAdminOrEditor && !hasReply) {
               html += `<button class="reply-btn bangla-font" data-token="${item.token}" data-name="${item.name}" data-batch="${item.batch}" data-message="${item.message}">উত্তর দিন</button>`;
+            }
+            
+            // Add view answer button for students (if they have a reply)
+            if (hasReply && item.token && getTokens().includes(item.token)) {
+              html += `<button class="reply-btn bangla-font" onclick="showAnswerForToken('${item.token}')">উত্তর দেখুন</button>`;
             }
             
             div.innerHTML = html;
@@ -4418,7 +4428,6 @@
         })
         .catch((error) => {
           console.error('Error loading submissions:', error);
-          const list = $('#submissions-list');
           list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)" class="bangla-font">সাবমিশন লোড হয়নি! আবার চেষ্টা করুন।</div>';
           showNotification("সাবমিশন লোড হয়নি! আবার চেষ্টা করুন।", true);
         });
@@ -4467,21 +4476,16 @@
 
       fetch(WEB_APP_URL, {
         method: 'POST',
+        mode: 'no-cors', // CORS সমস্যা এড়াতে
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(data)
       })
-      .then(res => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
       .then(response => {
         submitBtn.classList.remove('loading');
         submitBtn.disabled = false;
-        if (response.ok) {
+        if (response.ok || response.type === 'opaque') {
           hideReplyModal();
           showNotification(`টোকেন নম্বর ${token} এর উত্তর পাঠানো হয়েছে!`, false);
           // Reload submissions to update the UI
@@ -4505,7 +4509,10 @@
       const tokens = getTokens();
       if (tokens.length === 0) return;
       
-      fetch(WEB_APP_URL + '?action=getReplies')
+      fetch(WEB_APP_URL + '?action=getReplies', {
+        method: 'GET',
+        mode: 'cors'
+      })
         .then(res => {
           if (!res.ok) {
             throw new Error(`HTTP error! status: ${res.status}`);
@@ -4542,6 +4549,39 @@
       $('#answerModal').style.display = 'flex';
     }
     
+    // Function to show answer for token (new function)
+    function showAnswerForToken(token) {
+      fetch(WEB_APP_URL + '?action=getReplies', {
+        method: 'GET',
+        mode: 'cors'
+      })
+        .then(res => {
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then(response => {
+          if (!response.ok || !response.data) {
+            showNotification("উত্তর লোড করা যায়নি", true);
+            return;
+          }
+          
+          const reply = response.data.find(r => r.token === token);
+          if (reply) {
+            showAnswerModal(token, reply);
+            // Remove token from local storage after viewing
+            removeToken(token);
+          } else {
+            showNotification("এই টোকেনের জন্য কোন উত্তর নেই", true);
+          }
+        })
+        .catch(error => {
+          console.error("Error checking for replies:", error);
+          showNotification("উত্তর চেক করা যায়নি", true);
+        });
+    }
+
     // Function to hide answer modal
     function hideAnswerModal() {
       $('#answerModal').style.display = 'none';
@@ -5646,12 +5686,8 @@
 
     function showSubmissions(){ 
       $('#submissionsModal').style.display='flex'; 
-      
-      // শুধু এই ১ লাইন যোগ করুন
-      $('#submissions-list').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)" class="bangla-font">লোড হচ্ছে...</div>';
-      
       loadSubmissions(); 
-        }
+    }
 
     function hideSubmissions(){ $('#submissionsModal').style.display='none'; }
 
@@ -5698,45 +5734,45 @@
     }
 
     // Default page to main website transition
-function goToMainWebsite() {
-  defaultPage.style.display = 'none';
-  
-  // Always start main page from top regardless of default page scroll
-  window.scrollTo({ top: 0, behavior: 'instant' });
-  
-  if (checkLoginExpiry()) {
-    mainPage.style.display = 'block';
-    loadInitialData();
-    showAddClassButton();
-    showDashboardButton();
-    currentPageState = 'main';
-  } else {
-    loginPage.style.display = 'flex';
-  }
+    function goToMainWebsite() {
+      defaultPage.style.display = 'none';
+      
+      // Always start main page from top regardless of default page scroll
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      
+      if (checkLoginExpiry()) {
+        mainPage.style.display = 'block';
+        loadInitialData();
+        showAddClassButton();
+        showDashboardButton();
+        currentPageState = 'main';
+      } else {
+        loginPage.style.display = 'flex';
+      }
     }
 
-// Check if user has visited main website before
-document.addEventListener('DOMContentLoaded', () => {
-  // সবসময় ডিফল্ট পেজ দেখাবে
-  defaultPage.style.display = 'block';
-  loginPage.style.display = 'none';
-  mainPage.style.display = 'none';
-  subjectPage.style.display = 'none';
-  videoPlayerPage.style.display = 'none';
-  drivePlayerPage.style.display = 'none';
-  
-  initializeEventListeners();
-  
-  // Initialize dynamic placeholder
-  initDynamicPlaceholder();
-  
-  // Initialize slideshow
-  initSlideshow();
-  
-  // Initialize Clock
-  updateClock();
-  setInterval(updateClock, 1000);
-});
+    // Check if user has visited main website before
+    document.addEventListener('DOMContentLoaded', () => {
+      // সবসময় ডিফল্ট পেজ দেখাবে
+      defaultPage.style.display = 'block';
+      loginPage.style.display = 'none';
+      mainPage.style.display = 'none';
+      subjectPage.style.display = 'none';
+      videoPlayerPage.style.display = 'none';
+      drivePlayerPage.style.display = 'none';
+      
+      initializeEventListeners();
+      
+      // Initialize dynamic placeholder
+      initDynamicPlaceholder();
+      
+      // Initialize slideshow
+      initSlideshow();
+      
+      // Initialize Clock
+      updateClock();
+      setInterval(updateClock, 1000);
+    });
 
     function updateClock() {
       const now = new Date();
