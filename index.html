@@ -4366,19 +4366,27 @@
     // Storage keys for tokens
     const TOKEN_STORAGE_KEY = 'alim27_comment_tokens';
     
-    // Function to generate token from current date and time
+    // Function to generate token that matches App Script format
     function generateToken() {
       const now = new Date();
-      const dateStr = now.toLocaleDateString('en-GB').replace(/\//g, '');
-      const timeStr = now.toLocaleTimeString('en-GB', { hour12: false }).replace(/:/g, '');
-      return dateStr + timeStr;
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const year = now.getFullYear().toString().slice(-2);
+      const hour = String(now.getHours()).padStart(2, '0');
+      const minute = String(now.getMinutes()).padStart(2, '0');
+      const second = String(now.getSeconds()).padStart(2, '0');
+      
+      // Format: DDMMYYHHMMSS (e.g., 031225133513 for 03-12-2025 13:35:13)
+      return parseInt(day + month + year + hour + minute + second);
     }
     
     // Function to save token to local storage
     function saveToken(token) {
       let tokens = JSON.parse(localStorage.getItem(TOKEN_STORAGE_KEY)) || [];
-      if (!tokens.includes(token)) {
-        tokens.push(token);
+      // Convert token to string for consistent storage
+      const tokenStr = token.toString();
+      if (!tokens.includes(tokenStr)) {
+        tokens.push(tokenStr);
         localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(tokens));
       }
       return token;
@@ -4387,7 +4395,7 @@
     // Function to remove token from local storage
     function removeToken(token) {
       let tokens = JSON.parse(localStorage.getItem(TOKEN_STORAGE_KEY)) || [];
-      tokens = tokens.filter(t => t !== token);
+      tokens = tokens.filter(t => t !== token.toString());
       localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(tokens));
     }
     
@@ -4480,7 +4488,7 @@
       showNotification(`কমেন্ট জমা হয়েছে! টোকেন: ${token}`, false);
     }
     
-    // Modified loadSubmissions function to show reply buttons for admin/editor
+    // FIXED: Modified loadSubmissions function to show reply buttons for admin/editor
     function loadSubmissions() {
       // Show loading message
       const list = $('#submissions-list');
@@ -4518,6 +4526,7 @@
           
           const userRole = getUserRole();
           const isAdminOrEditor = userRole === 'owner' || userRole === 'editor';
+          const userTokens = getTokens();
           
           list.innerHTML = '';
           alim27Submissions.forEach(item => {
@@ -4526,6 +4535,8 @@
             
             // Check if this submission has a reply
             const hasReply = item.reply && item.reply.trim() !== '';
+            const tokenStr = item.token ? item.token.toString() : '';
+            const hasToken = tokenStr && userTokens.includes(tokenStr);
             
             let html = `
               <div class="submission-name bangla-font">${item.name || 'নাম নেই'}</div>
@@ -4536,18 +4547,19 @@
             if (hasReply) {
               html += `<div class="reply-indicator bangla-font">উত্তর দেওয়া হয়েছে</div>`;
               html += `<div class="submission-reply bangla-font"><strong>উত্তর:</strong> ${item.reply}</div>`;
+              html += `<div class="submission-time bangla-font">উত্তর দাতা: ${item.answeredBy || 'Admin'} | ${item.time || 'সময় নেই'}</div>`;
+            } else {
+              html += `<div class="submission-time bangla-font">${item.time || 'সময় নেই'}</div>`;
             }
-            
-            html += `<div class="submission-time bangla-font">${item.time || 'সময় নেই'}</div>`;
             
             // Add reply button for admin/editor
             if (isAdminOrEditor && !hasReply) {
               html += `<button class="reply-btn bangla-font" data-token="${item.token}" data-name="${item.name}" data-batch="${item.batch}" data-message="${item.message}">উত্তর দিন</button>`;
             }
             
-            // Add view answer button for students (if they have a reply)
-            if (hasReply && item.token && getTokens().includes(item.token.toString())) {
-              html += `<button class="reply-btn bangla-font" onclick="showAnswerForToken('${item.token}')">উত্তর দেখুন</button>`;
+            // Add view answer button for students (if they have a reply and token matches)
+            if (hasReply && hasToken) {
+              html += `<button class="reply-btn bangla-font" onclick="showAnswerForToken('${tokenStr}')">উত্তর দেখুন</button>`;
             }
             
             div.innerHTML = html;
@@ -4645,7 +4657,7 @@
       });
     }
     
-    // UPDATED: Function to check for replies - FIXED VERSION
+    // FIXED: Function to check for replies - SIMPLIFIED VERSION
     function checkForReplies() {
       const tokens = getTokens();
       if (tokens.length === 0) return;
@@ -4665,18 +4677,31 @@
             return;
           }
           
-          // Filter submissions that have replies and match our tokens
-          const repliedSubmissions = response.data.filter(item => {
-            // Check if item has reply and token exists
-            const hasReply = item.reply && item.reply.trim() !== '';
-            const hasToken = item.token && tokens.includes(item.token.toString());
-            return hasReply && hasToken;
+          // Filter only ALIM-27 batch submissions
+          const alim27Submissions = response.data.filter(item => 
+            item.batch && item.batch.toString().toLowerCase().includes('alim-27')
+          );
+          
+          // Find submissions that have replies and match our tokens
+          const repliedSubmissions = [];
+          
+          tokens.forEach(token => {
+            const submission = alim27Submissions.find(item => 
+              item.token && item.token.toString() === token && 
+              item.reply && item.reply.trim() !== ''
+            );
+            
+            if (submission) {
+              repliedSubmissions.push(submission);
+            }
           });
           
-          // Show modal for each replied submission
-          repliedSubmissions.forEach(item => {
-            showAnswerModal(item);
-          });
+          // Show modal for the first replied submission (most recent)
+          if (repliedSubmissions.length > 0) {
+            // Sort by timestamp descending (most recent first)
+            repliedSubmissions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            showAnswerModal(repliedSubmissions[0]);
+          }
         })
         .catch(error => {
           console.error("Error checking for replies:", error);
@@ -4696,9 +4721,11 @@
       understoodBtn.onclick = function() {
         removeToken(item.token.toString());
         hideAnswerModal();
+        showNotification("টোকেন ডিলিট হয়েছে! উত্তর সফলভাবে দেখা হয়েছে।", false);
       };
       
       $('#answerModal').style.display = 'flex';
+      $('#answerModal').style.zIndex = '10001';
     }
     
     // NEW: Function to remove token and close modal
@@ -4708,6 +4735,7 @@
         removeToken(tokenValue);
       }
       hideAnswerModal();
+      showNotification("টোকেন ডিলিট হয়েছে! উত্তর সফলভাবে দেখা হয়েছে।", false);
     }
     
     // Function to show answer for token (new function)
@@ -4728,7 +4756,10 @@
             return;
           }
           
-          const submission = response.data.find(item => item.token.toString() === token);
+          const submission = response.data.find(item => 
+            item.token && item.token.toString() === token
+          );
+          
           if (submission && submission.reply && submission.reply.trim() !== '') {
             showAnswerModal(submission);
           } else {
