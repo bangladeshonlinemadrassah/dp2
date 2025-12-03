@@ -4367,17 +4367,18 @@
     const TOKEN_STORAGE_KEY = 'alim27_comment_tokens';
     
     // Function to generate token that matches App Script format
-    function generateToken() {
-      const now = new Date();
-      const day = String(now.getDate()).padStart(2, '0');
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const year = now.getFullYear().toString().slice(-2);
-      const hour = String(now.getHours()).padStart(2, '0');
-      const minute = String(now.getMinutes()).padStart(2, '0');
-      const second = String(now.getSeconds()).padStart(2, '0');
-      
-      // Format: DDMMYYHHMMSS (e.g., 031225133513 for 03-12-2025 13:35:13)
-      return parseInt(day + month + year + hour + minute + second);
+function generateToken() {
+  const now = new Date();
+  const day = now.getDate(); // 1-31 (no padding)
+  const month = String(now.getMonth() + 1).padStart(2, '0'); // 01-12
+  const year = now.getFullYear(); // 2025
+  const hour = String(now.getHours()).padStart(2, '0'); // 00-23
+  const minute = String(now.getMinutes()).padStart(2, '0'); // 00-59
+  const second = String(now.getSeconds()).padStart(2, '0'); // 00-59
+  
+  // Format: DMMYYYYHHMMSS (e.g., 3122025150019 for 03-12-2025 15:00:19)
+  // দিনের জন্য padding নেই (1 অঙ্ক বা 2 অঙ্ক হতে পারে)
+  return parseInt(day.toString() + month + year + hour + minute + second);
     }
     
     // Function to save token to local storage
