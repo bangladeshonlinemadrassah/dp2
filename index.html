@@ -2872,32 +2872,32 @@
       box-shadow: 0 0 0 3px rgba(76, 176, 216, 0.2);
     }
 
-    /* Answer Modal Styles */
+    /* Answer Modal Styles - UPDATED with higher z-index and better positioning */
     .answer-modal {
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: rgba(0, 0, 0, 0.8);
+      background-color: rgba(0, 0, 0, 0.9);
       display: none;
       justify-content: center;
       align-items: center;
-      z-index: 2000;
+      z-index: 10001; /* Higher z-index to ensure it's on top */
     }
 
     .answer-modal-content {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 16px;
-      padding: 25px;
-      max-width: 600px;
+      padding: 30px;
+      max-width: 650px;
       width: 90%;
-      backdrop-filter: blur(12px);
-      box-shadow: var(--shadow-lg);
+      backdrop-filter: blur(15px);
+      box-shadow: var(--shadow-xl);
       position: relative;
       overflow-y: auto;
-      max-height: 90vh;
+      max-height: 85vh;
     }
 
     .answer-modal-content::before {
@@ -2917,9 +2917,10 @@
       background: none;
       border: none;
       color: var(--text-muted);
-      font-size: 1.5rem;
+      font-size: 1.8rem;
       cursor: pointer;
       transition: var(--transition);
+      z-index: 10002;
     }
 
     .answer-modal-close:hover {
@@ -2928,46 +2929,132 @@
 
     .answer-header {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 25px;
+    }
+
+    .answer-header h2 {
+      font-size: 1.8rem;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 10px;
     }
 
     .answer-box {
       background: rgba(76, 176, 216, 0.1);
       border: 1px solid var(--primary);
-      border-radius: 10px;
-      padding: 15px;
-      margin-bottom: 15px;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
     }
 
     .question-box, .reply-box {
       background: var(--glass);
       border-radius: 10px;
-      padding: 15px;
-      margin-bottom: 15px;
+      padding: 18px;
+      margin-bottom: 18px;
     }
 
     .question-label, .reply-label {
       font-weight: 600;
       color: var(--text-muted);
-      margin-bottom: 8px;
-      font-size: 0.9rem;
+      margin-bottom: 10px;
+      font-size: 1rem;
     }
 
     .question-content, .reply-content {
-      font-size: 0.95rem;
-      line-height: 1.5;
+      font-size: 1rem;
+      line-height: 1.6;
+      color: var(--text);
     }
 
     .answered-by {
       text-align: center;
-      margin-top: 15px;
-      font-size: 0.9rem;
+      margin-top: 20px;
+      font-size: 0.95rem;
       color: var(--text-muted);
     }
 
     .answered-by-name {
       font-weight: 600;
       color: var(--primary);
+    }
+
+    /* New "বুঝেছি" Button Styles */
+    .answer-understood-btn {
+      display: block;
+      margin: 25px auto 10px;
+      padding: 14px 40px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, #4CAF50, #2E7D32);
+      color: white;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: var(--transition);
+      box-shadow: var(--shadow-md);
+    }
+
+    .answer-understood-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-lg);
+      background: linear-gradient(135deg, #2E7D32, #1B5E20);
+    }
+
+    /* Updated success message with countdown */
+    .success-message {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, var(--secondary), #4CAF50);
+      color: white;
+      padding: 25px 40px;
+      border-radius: 12px;
+      z-index: 10003;
+      font-size: 1.1rem;
+      box-shadow: var(--shadow-xl);
+      text-align: center;
+      max-width: 500px;
+      width: 90%;
+    }
+
+    .success-message-countdown {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.8);
+      background: rgba(0,0,0,0.2);
+      padding: 4px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    /* Token display in answer modal */
+    .token-display {
+      text-align: center;
+      margin: 15px 0;
+      padding: 12px;
+      background: rgba(76, 176, 216, 0.15);
+      border-radius: 10px;
+      border: 1px dashed var(--primary);
+    }
+
+    .token-display-label {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+
+    .token-display-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: 1px;
     }
   </style>
 </head>
@@ -3507,13 +3594,18 @@
   </div>
 </div>
 
-<!-- Answer Modal (for students) -->
+<!-- UPDATED Answer Modal (for students) - Now with "বুঝেছি" button -->
 <div class="answer-modal" id="answerModal">
   <div class="answer-modal-content">
     <button class="answer-modal-close" onclick="hideAnswerModal()">×</button>
     <div class="answer-header">
       <h2 class="bangla-font">আপনার প্রশ্নের উত্তর</h2>
       <p class="bangla-font" id="answer-token-info"></p>
+    </div>
+    
+    <div class="token-display">
+      <div class="token-display-label bangla-font">আপনার টোকেন নম্বর</div>
+      <div class="token-display-value" id="answer-token-value"></div>
     </div>
     
     <div class="answer-box">
@@ -3532,10 +3624,25 @@
         <span class="answered-by-name bangla-font" id="answer-answered-by"></span>
       </div>
     </div>
+    
+    <!-- New "বুঝেছি" Button -->
+    <button class="answer-understood-btn bangla-font" id="answer-understood-btn" onclick="removeTokenAndClose()">
+      <i class="fas fa-check-circle"></i> বুঝেছি (টোকেন ডিলিট হবে)
+    </button>
+    
+    <div class="answered-by">
+      <small class="bangla-font" style="color: var(--text-muted);">
+        * "বুঝেছি" বাটনে ক্লিক করলে এই টোকেনটি আপনার ডিভাইস থেকে ডিলিট হয়ে যাবে এবং এই উত্তর আর দেখাবে না
+      </small>
+    </div>
   </div>
 </div>
 
-<div class="success-message" id="successMessage">ফর্ম সফলভাবে জমা হয়েছে!</div>
+<!-- UPDATED Success Message with Countdown -->
+<div class="success-message" id="successMessage">
+  <div class="success-message-countdown" id="successCountdown">20s</div>
+  <div id="successMessageContent"></div>
+</div>
 <div id="notification" class="notification"></div>
   <script>
     // Default Page Functionality
@@ -4321,7 +4428,7 @@
           // Save token to local storage
           saveToken(token);
           
-          // Show success message with token
+          // Show success message with token and countdown
           showSuccessMessageWithToken(token);
           form.reset(); 
           hideForm();
@@ -4342,18 +4449,32 @@
       });
     }
     
-    // Function to show success message with token
+    // UPDATED: Function to show success message with token and countdown
     function showSuccessMessageWithToken(token) {
       const successMessage = $('#successMessage');
-      successMessage.innerHTML = `ফর্ম সফলভাবে জমা হয়েছে!<br>আপনার টোকেন নম্বর: <strong>${token}</strong><br><small>এই টোকেন নম্বরটি উত্তর পেতে সাহায্য করবে</small>`;
+      const successMessageContent = $('#successMessageContent');
+      let timeLeft = 20;
+      
+      successMessageContent.innerHTML = `
+        ফর্ম সফলভাবে জমা হয়েছে!<br>
+        আপনার টোকেন নম্বর: <strong>${token}</strong><br>
+        <small>এই টোকেন নম্বরটি উত্তর পেতে সাহায্য করবে</small>
+      `;
+      
       successMessage.style.display = 'block';
+      successMessage.style.zIndex = '10003';
       
-      // Bring to front
-      successMessage.style.zIndex = '10001';
-      
-      setTimeout(() => {
-        successMessage.style.display = 'none';
-      }, 8000);
+      // Update countdown every second
+      const countdownElement = $('#successCountdown');
+      const countdownInterval = setInterval(() => {
+        timeLeft--;
+        countdownElement.textContent = timeLeft + 's';
+        
+        if (timeLeft <= 0) {
+          clearInterval(countdownInterval);
+          successMessage.style.display = 'none';
+        }
+      }, 1000);
       
       // Also show notification
       showNotification(`কমেন্ট জমা হয়েছে! টোকেন: ${token}`, false);
@@ -4524,7 +4645,7 @@
       });
     }
     
-    // UPDATED: Function to check for replies
+    // UPDATED: Function to check for replies - FIXED VERSION
     function checkForReplies() {
       const tokens = getTokens();
       if (tokens.length === 0) return;
@@ -4545,15 +4666,16 @@
           }
           
           // Filter submissions that have replies and match our tokens
-          const repliedSubmissions = response.data.filter(item => 
-            item.reply && item.reply.trim() !== '' && tokens.includes(item.token.toString())
-          );
+          const repliedSubmissions = response.data.filter(item => {
+            // Check if item has reply and token exists
+            const hasReply = item.reply && item.reply.trim() !== '';
+            const hasToken = item.token && tokens.includes(item.token.toString());
+            return hasReply && hasToken;
+          });
           
+          // Show modal for each replied submission
           repliedSubmissions.forEach(item => {
-            // Show answer modal
             showAnswerModal(item);
-            // Remove token from local storage after showing
-            removeToken(item.token.toString());
           });
         })
         .catch(error => {
@@ -4563,11 +4685,29 @@
     
     // UPDATED: Function to show answer modal with correct data structure
     function showAnswerModal(item) {
-      $('#answer-token-info').textContent = `আপনার টোকেন নম্বর: ${item.token}`;
-      $('#answer-question').textContent = item.message;
-      $('#answer-reply').textContent = item.reply;
+      $('#answer-token-info').textContent = `আপনার প্রশ্নের উত্তর পাওয়া গেছে!`;
+      $('#answer-token-value').textContent = item.token;
+      $('#answer-question').textContent = item.message || item.studentComment || 'কোনো প্রশ্ন নেই';
+      $('#answer-reply').textContent = item.reply || 'কোনো উত্তর নেই';
       $('#answer-answered-by').textContent = item.answeredBy || 'Admin';
+      
+      // Set up the "বুঝেছি" button with current token
+      const understoodBtn = $('#answer-understood-btn');
+      understoodBtn.onclick = function() {
+        removeToken(item.token.toString());
+        hideAnswerModal();
+      };
+      
       $('#answerModal').style.display = 'flex';
+    }
+    
+    // NEW: Function to remove token and close modal
+    function removeTokenAndClose() {
+      const tokenValue = $('#answer-token-value').textContent;
+      if (tokenValue) {
+        removeToken(tokenValue);
+      }
+      hideAnswerModal();
     }
     
     // Function to show answer for token (new function)
@@ -4591,8 +4731,6 @@
           const submission = response.data.find(item => item.token.toString() === token);
           if (submission && submission.reply && submission.reply.trim() !== '') {
             showAnswerModal(submission);
-            // Remove token from local storage after viewing
-            removeToken(token);
           } else {
             showNotification("এই টোকেনের জন্য কোন উত্তর নেই", true);
           }
@@ -4665,6 +4803,9 @@
       }
 
       $('#search').value = '';
+      
+      // Check for replies when subject page loads
+      checkForReplies();
     }
 
     function returnToMainPage() {
@@ -5828,6 +5969,13 @@
       // Initialize Clock
       updateClock();
       setInterval(updateClock, 1000);
+      
+      // Check for replies when page loads
+      setTimeout(() => {
+        if (checkLoginExpiry()) {
+          checkForReplies();
+        }
+      }, 2000);
     });
 
     function updateClock() {
