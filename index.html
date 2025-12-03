@@ -3238,8 +3238,8 @@
     </main>
     <div class="container">
       <div class="action-buttons">
-        <button class="form-button" id="form-button"><i class="fas fa-comment"></i> <span class="bangla-font">কমেন্ট করুন</span></button>
-        <button class="submissions-button" id="submissions-button"><i class="fas fa-list"></i> <span class="bangla-font">সাবমিশন দেখুন</span></button>
+        <button class="form-button" id="form-button" style="display: none;"><i class="fas fa-comment"></i> <span class="bangla-font">কমেন্ট করুন</span></button>
+        <button class="submissions-button" id="submissions-button" style="display: none;"><i class="fas fa-list"></i> <span class="bangla-font">সাবমিশন দেখুন</span></button>
       </div>
     </div>
     <div class="owner-wrap">
@@ -3778,6 +3778,23 @@
       }, 3000);
     }
 
+    function setButtonVisibility() {
+      const role = getUserRole();
+      const formButton = $('#form-button');
+      const submissionsButton = $('#submissions-button');
+      
+      // Reset both first
+      formButton.style.display = 'none';
+      submissionsButton.style.display = 'none';
+      
+      if (role === 'user' || role === 'editor') {
+        formButton.style.display = 'inline-flex';
+      } 
+      if (role === 'owner' || role === 'editor') {
+        submissionsButton.style.display = 'inline-flex';
+      }
+    }
+
     function checkPassword() {
       const password = $('#password').value.trim();
       const errorElement = $('#error-message');
@@ -3790,6 +3807,7 @@
         showLoadingOverlay(); // Show loading overlay
         loadInitialData();
         showDashboardButton();
+        setButtonVisibility(); // Set button visibility based on role
         scrollToTop();
       } else if (password === 'OWNERALIM27') {
         setLoginExpiry('owner');
@@ -3798,6 +3816,7 @@
         showWarningModal();
         showLoadingOverlay(); // Show loading overlay
         loadInitialData();
+        setButtonVisibility(); // Set button visibility based on role
         scrollToTop();
       } else if (password === 'EDITOR@BOM-435') {
         setLoginExpiry('editor');
@@ -3806,6 +3825,7 @@
         showWarningModal();
         showLoadingOverlay(); // Show loading overlay
         loadInitialData();
+        setButtonVisibility(); // Set button visibility based on role
         scrollToTop();
       } else {
         errorElement.style.display = 'block';
@@ -4405,7 +4425,7 @@
             }
             
             // Add view answer button for students (if they have a reply)
-            if (hasReply && item.token && getTokens().includes(item.token)) {
+            if (hasReply && item.token && getTokens().includes(item.token.toString())) {
               html += `<button class="reply-btn bangla-font" onclick="showAnswerForToken('${item.token}')">উত্তর দেখুন</button>`;
             }
             
@@ -4415,7 +4435,7 @@
           
           // Add event listeners to reply buttons
           if (isAdminOrEditor) {
-            document.querySelectorAll('.reply-btn').forEach(btn => {
+            document.querySelectorAll('.reply-btn[data-token]').forEach(btn => {
               btn.addEventListener('click', function() {
                 const token = this.getAttribute('data-token');
                 const name = this.getAttribute('data-name');
@@ -4504,12 +4524,12 @@
       });
     }
     
-    // Function to check for replies
+    // UPDATED: Function to check for replies
     function checkForReplies() {
       const tokens = getTokens();
       if (tokens.length === 0) return;
       
-      fetch(WEB_APP_URL + '?action=getReplies', {
+      fetch(WEB_APP_URL + '?action=getSubmissions', {
         method: 'GET',
         mode: 'cors'
       })
@@ -4524,15 +4544,16 @@
             return;
           }
           
-          const replies = response.data;
-          tokens.forEach(token => {
-            const reply = replies.find(r => r.token === token);
-            if (reply) {
-              // Show answer modal
-              showAnswerModal(token, reply);
-              // Remove token from local storage
-              removeToken(token);
-            }
+          // Filter submissions that have replies and match our tokens
+          const repliedSubmissions = response.data.filter(item => 
+            item.reply && item.reply.trim() !== '' && tokens.includes(item.token.toString())
+          );
+          
+          repliedSubmissions.forEach(item => {
+            // Show answer modal
+            showAnswerModal(item);
+            // Remove token from local storage after showing
+            removeToken(item.token.toString());
           });
         })
         .catch(error => {
@@ -4540,18 +4561,18 @@
         });
     }
     
-    // Function to show answer modal
-    function showAnswerModal(token, reply) {
-      $('#answer-token-info').textContent = `আপনার টোকেন নম্বর: ${token}`;
-      $('#answer-question').textContent = reply.studentComment;
-      $('#answer-reply').textContent = reply.replyMessage;
-      $('#answer-answered-by').textContent = reply.answeredBy;
+    // UPDATED: Function to show answer modal with correct data structure
+    function showAnswerModal(item) {
+      $('#answer-token-info').textContent = `আপনার টোকেন নম্বর: ${item.token}`;
+      $('#answer-question').textContent = item.message;
+      $('#answer-reply').textContent = item.reply;
+      $('#answer-answered-by').textContent = item.answeredBy || 'Admin';
       $('#answerModal').style.display = 'flex';
     }
     
     // Function to show answer for token (new function)
     function showAnswerForToken(token) {
-      fetch(WEB_APP_URL + '?action=getReplies', {
+      fetch(WEB_APP_URL + '?action=getSubmissions', {
         method: 'GET',
         mode: 'cors'
       })
@@ -4567,9 +4588,9 @@
             return;
           }
           
-          const reply = response.data.find(r => r.token === token);
-          if (reply) {
-            showAnswerModal(token, reply);
+          const submission = response.data.find(item => item.token.toString() === token);
+          if (submission && submission.reply && submission.reply.trim() !== '') {
+            showAnswerModal(submission);
             // Remove token from local storage after viewing
             removeToken(token);
           } else {
@@ -4605,6 +4626,9 @@
       
       // Check for replies
       checkForReplies();
+      
+      // Set button visibility
+      setButtonVisibility();
       
       // Hide loading overlay after a short delay to ensure everything is loaded
       setTimeout(() => {
@@ -5745,6 +5769,7 @@
         loadInitialData();
         showAddClassButton();
         showDashboardButton();
+        setButtonVisibility(); // Set button visibility
         currentPageState = 'main';
       } else {
         loginPage.style.display = 'flex';
@@ -5760,6 +5785,37 @@
       subjectPage.style.display = 'none';
       videoPlayerPage.style.display = 'none';
       drivePlayerPage.style.display = 'none';
+      
+      // Initialize default page functionality
+      document.getElementById('main-website-btn').addEventListener('click', goToMainWebsite);
+      
+      // Initialize motivation rotation
+      setInterval(rotateMotivationText, 5000);
+      
+      // Initialize modal functionality for default page
+      document.querySelectorAll(".details-btn").forEach(btn => {
+        btn.addEventListener("click", function() {
+          const courseId = this.getAttribute("data-course");
+          const course = courseDetails[courseId];
+          document.getElementById("modalImage").src = course.img;
+          document.getElementById("modalDetails").innerHTML = course.details;
+          document.getElementById("courseModal").style.display = "block";
+          document.body.style.overflow = "hidden";
+        });
+      });
+      
+      // Close modal functionality
+      document.getElementsByClassName("close")[0].addEventListener("click", function() {
+        document.getElementById("courseModal").style.display = "none";
+        document.body.style.overflow = "";
+      });
+      
+      window.addEventListener("click", function(event) {
+        if (event.target == document.getElementById("courseModal")) {
+          document.getElementById("courseModal").style.display = "none";
+          document.body.style.overflow = "";
+        }
+      });
       
       initializeEventListeners();
       
@@ -5806,25 +5862,8 @@
       }
     }
 
-    function setButtonVisibility() {
-      const role = getUserRole();
-      const formButton = $('#form-button');
-      const submissionsButton = $('#submissions-button');
-      
-      // Reset both first
-      formButton.style.display = 'none';
-      submissionsButton.style.display = 'none';
-      
-      if (role === 'user' || role === 'editor') {
-        formButton.style.display = 'inline-flex';
-      } 
-      if (role === 'owner' || role === 'editor') {
-        submissionsButton.style.display = 'inline-flex';
-      }
-    }
-
     // Add event listener to the main website button in default page
-    document.getElementById('main-website-btn').addEventListener('click', goToMainWebsite);
+    // This is now handled inside DOMContentLoaded
   </script>
 </body>
 </html>
